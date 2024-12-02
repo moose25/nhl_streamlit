@@ -2,62 +2,67 @@ import streamlit as st
 import requests
 import pandas as pd
 
-# NHL Suggest API Base URL
-SUGGEST_API_BASE_URL = "https://suggest.svc.nhl.com/svc/suggest/v1/minplayers/"
+# NHL API Base URL
+NHL_API_BASE_URL = "https://api-web.nhle.com/v1/"
 
-def search_player_by_name(name):
-    """Search for players by name using the NHL Suggest API."""
-    url = f"{SUGGEST_API_BASE_URL}{name}"
+# Helper Functions
+def fetch_data(endpoint):
+    """Fetch data from the NHL API."""
+    url = f"{NHL_API_BASE_URL}{endpoint}"
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         response.raise_for_status()
-        data = response.json()
-        players = data.get('suggestions', [])
-        return players
+        return response.json()
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
-        return []
+        st.error(f"An error occurred while fetching data: {e}")
+        return None
 
-def get_player_id(player_info):
-    """Extract player ID from the suggestion string."""
-    return player_info.split('|')[0]
+def get_standings():
+    """Retrieve current team standings."""
+    return fetch_data("standings/now")
 
-def fetch_player_stats(player_id):
-    """Fetch player stats using the NHL Stats API."""
-    stats_api_url = f"https://statsapi.web.nhl.com/api/v1/people/{player_id}/stats?stats=careerRegularSeason"
-    try:
-        response = requests.get(stats_api_url)
-        response.raise_for_status()
-        data = response.json()
-        stats = data['stats'][0]['splits'][0]['stat']
-        return stats
-    except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
-        return {}
+def get_team_roster(team_code):
+    """Retrieve the current roster for a team."""
+    return fetch_data(f"roster/{team_code}/current")
+
+def get_team_stats(team_code):
+    """Retrieve current stats for a team."""
+    return fetch_data(f"club-stats/{team_code}/now")
 
 # Streamlit App
-st.title("NHL Player Lookup")
+st.title("NHL Teams, Rosters, and Stats")
 
-player_name = st.text_input("Enter Player Name")
+# Fetch and display standings
+st.header("Current Standings")
+standings = get_standings()
+if standings and "teams" in standings:
+    for team in standings["teams"]:
+        team_name = team["name"]
+        team_code = team["abbreviation"]
+        st.subheader(f"{team_name} ({team_code})")
 
-if st.button("Search"):
-    if player_name:
-        players = search_player_by_name(player_name)
-        if players:
-            player_options = {f"{p.split('|')[1]} {p.split('|')[2]}": p for p in players}
-            selected_player = st.selectbox("Select a Player", list(player_options.keys()))
-            player_info = player_options[selected_player]
-            player_id = get_player_id(player_info)
-            stats = fetch_player_stats(player_id)
-            if stats:
-                st.write(f"**{selected_player}**")
-                st.write(f"**Games Played:** {stats.get('games', 'N/A')}")
-                st.write(f"**Goals:** {stats.get('goals', 'N/A')}")
-                st.write(f"**Assists:** {stats.get('assists', 'N/A')}")
-                st.write(f"**Points:** {stats.get('points', 'N/A')}")
-            else:
-                st.write("No stats available for this player.")
+        # Fetch and display team roster
+        st.markdown("### Roster")
+        roster = get_team_roster(team_code)
+        if roster and "players" in roster:
+            roster_data = [{
+                "Name": f"{player['firstName']['default']} {player['lastName']['default']}",
+                "Position": player["position"],
+                "Sweater Number": player["sweaterNumber"]
+            } for player in roster["players"]]
+            st.dataframe(pd.DataFrame(roster_data))
         else:
-            st.write("No players found with that name.")
-    else:
-        st.write("Please enter a player name.")
+            st.write("No roster data available.")
+
+        # Fetch and display team stats
+        st.markdown("### Team Stats")
+        stats = get_team_stats(team_code)
+        if stats:
+            stats_data = stats.get("overallStats", {})
+            st.write(f"**Wins:** {stats_data.get('wins', 'N/A')}")
+            st.write(f"**Losses:** {stats_data.get('losses', 'N/A')}")
+            st.write(f"**Points:** {stats_data.get('points', 'N/A')}")
+        else:
+            st.write("No stats data available.")
+else:
+    st.write("Standings data not available.")
