@@ -19,7 +19,7 @@ def fetch_data(base_url, endpoint, params=None):
         return None
 
 def get_active_teams():
-    """Retrieve all NHL teams and use triCode for abbreviation."""
+    """Retrieve active NHL teams with valid triCodes."""
     teams_data = fetch_data(NHL_STATS_API_BASE_URL, "team")
     if teams_data and "data" in teams_data:
         active_teams = [
@@ -41,18 +41,18 @@ def get_team_roster(team_code):
 # Streamlit App
 st.title("NHL Teams and Rosters")
 
-# Fetch and display all active teams
+# Fetch all teams
 teams = get_active_teams()
 if teams:
     for team in teams:
         team_name = team.get("fullName", "Unknown Team")
         team_code = team.get("triCode", "N/A")
-        st.header(f"{team_name} ({team_code})")
 
-        # Fetch and display team roster
+        # Fetch team roster and only display if the roster exists
         if team_code != "N/A":
             roster = get_team_roster(team_code)
             if roster and "players" in roster:
+                st.header(f"{team_name} ({team_code})")
                 roster_data = [
                     {
                         "Name": f"{player['firstName']['default']} {player['lastName']['default']}",
@@ -63,8 +63,7 @@ if teams:
                 ]
                 st.dataframe(pd.DataFrame(roster_data))
             else:
-                st.write("No roster data available.")
-        else:
-            st.write("Invalid team code.")
+                # Skip teams without rosters
+                continue
 else:
     st.write("No active teams available to display.")
