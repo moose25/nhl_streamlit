@@ -5,21 +5,23 @@ from requests.exceptions import ConnectionError, Timeout, RequestException
 # NHL API Base URL
 NHL_API_BASE_URL = "https://statsapi.web.nhl.com/api/v1/"
 
-# Helper Functions
 def fetch_data(endpoint):
-    """Fetch data from the NHL API with error handling."""
+    """Fetch data from the NHL API with enhanced error handling."""
     url = f"{NHL_API_BASE_URL}{endpoint}"
     try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()  # Raise an HTTPError for bad responses
+        st.write(f"Attempting to fetch data from: {url}")  # Debug log
+        response = requests.get(url, timeout=10, verify=False)  # Disable SSL temporarily
+        st.write(f"Response Status: {response.status_code}")  # Debug log
+        response.raise_for_status()
         return response.json()
     except ConnectionError:
-        st.error("Failed to connect to the NHL API. Please check your internet connection or try again later.")
+        st.error("Failed to connect to the NHL API. Please check your connection.")
     except Timeout:
         st.error("The request to the NHL API timed out. Please try again later.")
     except RequestException as e:
-        st.error(f"An unexpected error occurred: {e}")
+        st.error(f"Unexpected error occurred: {e}")
     return None
+
 
 def get_teams():
     """Retrieve all NHL teams."""
