@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 from requests.exceptions import ConnectionError, Timeout, RequestException
+import pandas as pd
 
 # NHL API Base URL
 NHL_API_BASE_URL = "https://api-web.nhle.com/v1/"
@@ -26,62 +27,75 @@ def fetch_data(endpoint, params=None):
         st.error(f"Unexpected error occurred: {e}")
     return None
 
+def get_teams():
+    """Fetch all NHL teams."""
+    return fetch_data("teams")
+
 def get_skater_stats_leaders(season, game_type, category=None, limit=5):
     """Retrieve skater stats leaders for a specific season and game type."""
     endpoint = f"skater-stats-leaders/{season}/{game_type}"
     params = {'categories': category, 'limit': limit}
     return fetch_data(endpoint, params)
 
-def get_goalie_stats_leaders(season, game_type, category=None, limit=5):
-    """Retrieve goalie stats leaders for a specific season and game type."""
-    endpoint = f"goalie-stats-leaders/{season}/{game_type}"
-    params = {'categories': category, 'limit': limit}
-    return fetch_data(endpoint, params)
+def format_player_stats(players):
+    """Format player stats into a table."""
+    if not players:
+        st.write("No player data available.")
+        return
 
-def get_player_game_log(player_id, season, game_type):
-    """Retrieve game log for a specific player."""
-    endpoint = f"player/{player_id}/game-log/{season}/{game_type}"
-    return fetch_data(endpoint)
+    player_data = []
+    for player in players:
+        player_data.append({
+            "Player": f"{player['firstName']['default']} {player['lastName']['default']}",
+            "Team": player['teamName']['default'],
+            "Position": player['position'],
+            "Goals": player['value'],
+            "Number": player['sweaterNumber'],
+            "Headshot": f"![]({player['headshot']})",
+            "Team Logo": f"![]({player['teamLogo']})",
+        })
 
-def get_player_info(player_id):
-    """Retrieve detailed information for a specific player."""
-    endpoint = f"player/{player_id}/landing"
-    return fetch_data(endpoint)
+    # Create a DataFrame and display it as Markdown
+    df = pd.DataFrame(player_data)
+    st.markdown(df.to_markdown(index=False), unsafe_allow_html=True)
 
 # Streamlit App Interface
 st.title("NHL Stats Explorer")
-st.write("Explore skater stats leaders, goalie stats leaders, and player-specific data.")
+st.write("Explore NHL teams, view their rosters, team stats, and player stats.")
 
-# Skater Stats Leaders
-st.header("Skater Stats Leaders")
+# Teams Section
+st.header("NHL Teams")
+teams = get_teams()
+if teams:
+    for team in teams:
+        st.subheader(team["name"])
+        st.image(team["logo"], width=100)
+
+# Player Stats Leaders Section
+st.header("Player Stats Leaders")
 season = st.text_input("Enter Season (YYYYYYYY format)", value="20222023")
 game_type = st.selectbox("Select Game Type", options=[2, 3], format_func=lambda x: "Regular Season" if x == 2 else "Playoffs")
 category = st.text_input("Enter Category (optional)", value="goals")
 limit = st.number_input("Number of Results", min_value=1, max_value=50, value=5)
 
-if st.button("Get Skater Stats Leaders"):
-    skater_stats = get_skater_stats_leaders(season, game_type, category, limit)
-    if skater_stats:
-        st.json(skater_stats)
-
-# Goalie Stats Leaders
-st.header("Goalie Stats Leaders")
-if st.button("Get Goalie Stats Leaders"):
-    goalie_stats = get_goalie_stats_leaders(season, game_type, category, limit)
-    if goalie_stats:
-        st.json(goalie_stats)
+if st.button("Get Player Stats Leaders"):
+    stats_leaders = get_skater_stats_leaders(season, game_type, category, limit)
+    if stats_leaders and category in stats_leaders:
+        format_player_stats(stats_leaders[category])
+    else:
+        st.write("No data found for the selected criteria.")
 
 # Player Information
 st.header("Player Information")
 player_id = st.text_input("Enter Player ID", value="8478402")
 if st.button("Get Player Info"):
-    player_info = get_player_info(player_id)
+    player_info = fetch_data(f"player/{player_id}/landing")
     if player_info:
         st.json(player_info)
 
 # Player Game Log
 st.header("Player Game Log")
 if st.button("Get Player Game Log"):
-    player_game_log = get_player_game_log(player_id, season, game_type)
-    if player_game_log:
-        st.json(player_game_log)
+    game_log = fetch_data(f"player/{player_id}/game-log/{season}/{game_type}")
+    if game_log:
+        st.json(game_log)
