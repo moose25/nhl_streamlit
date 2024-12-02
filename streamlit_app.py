@@ -17,52 +17,43 @@ def fetch_data(endpoint):
         st.error(f"An error occurred while fetching data: {e}")
         return None
 
-def get_standings():
-    """Retrieve current team standings."""
-    return fetch_data("standings/now")
+def get_teams():
+    """Fetch all NHL teams."""
+    standings = fetch_data("standings/now")
+    if standings and "teams" in standings:
+        return standings["teams"]
+    else:
+        st.error("No team data available.")
+        return []
 
 def get_team_roster(team_code):
-    """Retrieve the current roster for a team."""
+    """Fetch the roster for a given team."""
     return fetch_data(f"roster/{team_code}/current")
 
-def get_team_stats(team_code):
-    """Retrieve current stats for a team."""
-    return fetch_data(f"club-stats/{team_code}/now")
-
 # Streamlit App
-st.title("NHL Teams, Rosters, and Stats")
+st.title("NHL Teams and Rosters")
 
-# Fetch and display standings
-st.header("Current Standings")
-standings = get_standings()
-if standings and "teams" in standings:
-    for team in standings["teams"]:
-        team_name = team["name"]
-        team_code = team["abbreviation"]
-        st.subheader(f"{team_name} ({team_code})")
+teams = get_teams()
+if teams:
+    for team in teams:
+        # Display team information
+        team_name = team.get("name", "Unknown Team")
+        team_code = team.get("abbreviation", "N/A")
+        st.header(f"{team_name} ({team_code})")
 
-        # Fetch and display team roster
-        st.markdown("### Roster")
+        # Fetch and display roster
         roster = get_team_roster(team_code)
         if roster and "players" in roster:
-            roster_data = [{
-                "Name": f"{player['firstName']['default']} {player['lastName']['default']}",
-                "Position": player["position"],
-                "Sweater Number": player["sweaterNumber"]
-            } for player in roster["players"]]
+            roster_data = [
+                {
+                    "Name": f"{player['firstName']['default']} {player['lastName']['default']}",
+                    "Position": player.get("position", "N/A"),
+                    "Sweater Number": player.get("sweaterNumber", "N/A")
+                }
+                for player in roster["players"]
+            ]
             st.dataframe(pd.DataFrame(roster_data))
         else:
             st.write("No roster data available.")
-
-        # Fetch and display team stats
-        st.markdown("### Team Stats")
-        stats = get_team_stats(team_code)
-        if stats:
-            stats_data = stats.get("overallStats", {})
-            st.write(f"**Wins:** {stats_data.get('wins', 'N/A')}")
-            st.write(f"**Losses:** {stats_data.get('losses', 'N/A')}")
-            st.write(f"**Points:** {stats_data.get('points', 'N/A')}")
-        else:
-            st.write("No stats data available.")
 else:
-    st.write("Standings data not available.")
+    st.write("No teams available to display.")
