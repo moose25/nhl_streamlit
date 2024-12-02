@@ -17,14 +17,15 @@ def fetch_data(endpoint):
         st.error(f"An error occurred while fetching data: {e}")
         return None
 
-def get_teams():
-    """Fetch all NHL teams."""
-    standings = fetch_data("standings/now")
-    if standings and "teams" in standings:
-        return standings["teams"]
-    else:
-        st.error("No team data available.")
-        return []
+def fetch_all_teams():
+    """Fetch all teams manually."""
+    teams = [
+        {"name": "Boston Bruins", "abbreviation": "BOS"},
+        {"name": "Toronto Maple Leafs", "abbreviation": "TOR"},
+        {"name": "Edmonton Oilers", "abbreviation": "EDM"},
+        # Add other teams manually if needed
+    ]
+    return teams
 
 def get_team_roster(team_code):
     """Fetch the roster for a given team."""
@@ -33,7 +34,7 @@ def get_team_roster(team_code):
 # Streamlit App
 st.title("NHL Teams and Rosters")
 
-teams = get_teams()
+teams = fetch_all_teams()
 if teams:
     for team in teams:
         # Display team information
