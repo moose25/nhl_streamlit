@@ -4,7 +4,6 @@ import pandas as pd
 
 # NHL API Base URLs
 NHL_WEB_API_BASE_URL = "https://api-web.nhle.com/v1/"
-NHL_STATS_API_BASE_URL = "https://api.nhle.com/stats/rest/en/"
 
 # Active Teams Based on triCode
 ACTIVE_TEAMS = [
