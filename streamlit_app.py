@@ -19,15 +19,12 @@ def fetch_data(base_url, endpoint, params=None):
         return None
 
 def get_active_teams():
-    """Retrieve only active NHL teams."""
+    """Retrieve and display raw team data for debugging."""
     teams_data = fetch_data(NHL_STATS_API_BASE_URL, "team")
-    if teams_data and "data" in teams_data:
-        active_teams = [
-            team
-            for team in teams_data["data"]
-            if team.get("abbreviation") not in (None, "N/A")  # Exclude teams without valid abbreviations
-        ]
-        return active_teams
+    if teams_data:
+        st.write("Raw Team Data:", teams_data)  # Display the raw API response
+        if "data" in teams_data:
+            return teams_data["data"]
     return []
 
 def get_team_roster(team_abbreviation):
