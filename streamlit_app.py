@@ -3,12 +3,13 @@ import requests
 import pandas as pd
 
 # NHL API Base URL
-NHL_API_BASE_URL = "https://api.nhle.com/stats/rest/en/"
+NHL_WEB_API_BASE_URL = "https://api-web.nhle.com/v1/"
+NHL_STATS_API_BASE_URL = "https://api.nhle.com/stats/rest/en/"
 
 # Helper Functions
-def fetch_data(endpoint, params=None):
+def fetch_data(base_url, endpoint, params=None):
     """Fetch data from the NHL API."""
-    url = f"{NHL_API_BASE_URL}{endpoint}"
+    url = f"{base_url}{endpoint}"
     try:
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
@@ -19,12 +20,12 @@ def fetch_data(endpoint, params=None):
 
 def get_teams():
     """Retrieve all NHL teams."""
-    return fetch_data("team")
+    return fetch_data(NHL_STATS_API_BASE_URL, "team")
 
 def get_team_roster(team_abbreviation):
     """Retrieve the current roster for a specific team."""
-    endpoint = f"team/{team_abbreviation}/roster"
-    return fetch_data(endpoint)
+    endpoint = f"roster/{team_abbreviation}/current"
+    return fetch_data(NHL_WEB_API_BASE_URL, endpoint)
 
 # Streamlit App
 st.title("NHL Teams and Rosters")
@@ -39,18 +40,21 @@ if teams and "data" in teams:
         st.header(f"{team_name} ({team_abbreviation})")
 
         # Fetch and display team roster
-        roster = get_team_roster(team_abbreviation)
-        if roster and "roster" in roster:
-            roster_data = [
-                {
-                    "Name": player.get("person", {}).get("fullName", "N/A"),
-                    "Position": player.get("position", {}).get("abbreviation", "N/A"),
-                    "Jersey Number": player.get("jerseyNumber", "N/A"),
-                }
-                for player in roster["roster"]
-            ]
-            st.dataframe(pd.DataFrame(roster_data))
+        if team_abbreviation != "N/A":
+            roster = get_team_roster(team_abbreviation)
+            if roster and "players" in roster:
+                roster_data = [
+                    {
+                        "Name": f"{player['firstName']['default']} {player['lastName']['default']}",
+                        "Position": player.get("position", "N/A"),
+                        "Jersey Number": player.get("sweaterNumber", "N/A"),
+                    }
+                    for player in roster["players"]
+                ]
+                st.dataframe(pd.DataFrame(roster_data))
+            else:
+                st.write("No roster data available.")
         else:
-            st.write("No roster data available.")
+            st.write("Invalid team abbreviation.")
 else:
     st.write("No teams available to display.")
