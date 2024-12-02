@@ -3,55 +3,51 @@ import requests
 import pandas as pd
 
 # NHL API Base URL
-NHL_API_BASE_URL = "https://api-web.nhle.com/v1/"
+NHL_API_BASE_URL = "https://api.nhle.com/stats/rest/en/"
 
 # Helper Functions
-def fetch_data(endpoint):
+def fetch_data(endpoint, params=None):
     """Fetch data from the NHL API."""
     url = f"{NHL_API_BASE_URL}{endpoint}"
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         st.error(f"An error occurred while fetching data: {e}")
         return None
 
-def fetch_all_teams():
-    """Fetch all teams manually."""
-    teams = [
-        {"name": "Boston Bruins", "abbreviation": "BOS"},
-        {"name": "Toronto Maple Leafs", "abbreviation": "TOR"},
-        {"name": "Edmonton Oilers", "abbreviation": "EDM"},
-        # Add other teams manually if needed
-    ]
-    return teams
+def get_teams():
+    """Retrieve all NHL teams."""
+    return fetch_data("team")
 
-def get_team_roster(team_code):
-    """Fetch the roster for a given team."""
-    return fetch_data(f"roster/{team_code}/current")
+def get_team_roster(team_abbreviation):
+    """Retrieve the current roster for a specific team."""
+    endpoint = f"team/{team_abbreviation}/roster"
+    return fetch_data(endpoint)
 
 # Streamlit App
 st.title("NHL Teams and Rosters")
 
-teams = fetch_all_teams()
-if teams:
+# Fetch and display all teams
+teams = get_teams()
+if teams and "data" in teams:
+    teams = teams["data"]
     for team in teams:
-        # Display team information
-        team_name = team.get("name", "Unknown Team")
-        team_code = team.get("abbreviation", "N/A")
-        st.header(f"{team_name} ({team_code})")
+        team_name = team.get("fullName", "Unknown Team")
+        team_abbreviation = team.get("abbreviation", "N/A")
+        st.header(f"{team_name} ({team_abbreviation})")
 
-        # Fetch and display roster
-        roster = get_team_roster(team_code)
-        if roster and "players" in roster:
+        # Fetch and display team roster
+        roster = get_team_roster(team_abbreviation)
+        if roster and "roster" in roster:
             roster_data = [
                 {
-                    "Name": f"{player['firstName']['default']} {player['lastName']['default']}",
-                    "Position": player.get("position", "N/A"),
-                    "Sweater Number": player.get("sweaterNumber", "N/A")
+                    "Name": player.get("person", {}).get("fullName", "N/A"),
+                    "Position": player.get("position", {}).get("abbreviation", "N/A"),
+                    "Jersey Number": player.get("jerseyNumber", "N/A"),
                 }
-                for player in roster["players"]
+                for player in roster["roster"]
             ]
             st.dataframe(pd.DataFrame(roster_data))
         else:
